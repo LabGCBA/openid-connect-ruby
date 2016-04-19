@@ -8,7 +8,7 @@ A literal, not so idiomatic ruby port of Michael Jett's excellent [OpenID Connec
 ## Usage
 See `example.rb`
 ```
-oidc = OpenIDConnectClient.new('https://provider.com/openid', 'CLIENT_ID', 'SECRET')
+oidc = OpenIDConnectClient::Client.new('https://provider.com/openid', 'CLIENT_ID', 'SECRET')
 oidc.redirect_url = "http://yourweb.com/callback"
 oidc.scopes = "openid email profile address phone"
 
@@ -20,7 +20,7 @@ redirect_to(oidc.auth_endpoint)
 
 ### On the callback
 ```
-oidc = OpenIDConnectClient.new('https://provider.com/openid', 'CLIENT_ID', 'SECRET')
+oidc = OpenIDConnectClient::Client.new('https://provider.com/openid', 'CLIENT_ID', 'SECRET')
 oidc.redirect_url = "http://yourweb.com/callback"
 oidc.scopes = "openid email profile address phone"
 
