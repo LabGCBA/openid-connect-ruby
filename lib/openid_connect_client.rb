@@ -10,7 +10,7 @@ module OpenIDConnectClient
       require 'cgi'
       require 'base64'
       require 'openssl'
-      require 'xml/libxml'
+      # require 'xml/libxml'
       require 'curb'
       
 
