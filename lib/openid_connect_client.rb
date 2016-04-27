@@ -1,5 +1,3 @@
-require "openid_connect_client/version"
-
 module OpenIDConnectClient
   class OpenIDConnectClientException < Exception  
   end
@@ -10,7 +8,6 @@ module OpenIDConnectClient
       require 'cgi'
       require 'base64'
       require 'openssl'
-      # require 'xml/libxml'
       require 'curb'
       
 
@@ -22,7 +19,7 @@ module OpenIDConnectClient
           # @return void
           # @throws OpenIDConnectClientException
           #
-          def get_provider_config
+          def get_provider_config()
             
               well_known_config_response = fetch_url(@well_known_config_url).body_str
               
@@ -127,21 +124,19 @@ module OpenIDConnectClient
               unless key["n"] and key["e"]
                   raise OpenIDConnectClientException, "Malformed key object."
               end
-
-              public_key_xml = "<RSAKeyValue>\r\n  <Modulus>#{url_safe_base64(key["n"])}</Modulus>\r\n  <Exponent>#{url_safe_base64(key["e"])}</Exponent>\r\n</RSAKeyValue>"
-              
-              digest = case hashtype
-                  when 'md2' then OpenSSL::Digest::MD2.new
-                  when 'md5' then OpenSSL::Digest::MD5.new
-                  when 'sha1' then OpenSSL::Digest::SHA1.new
-                  when 'sha256' then OpenSSL::Digest::SHA256.new
-                  when 'sha384' then OpenSSL::Digest::SHA384.new
-                  when 'sha512' then OpenSSL::Digest::SHA512.new
-                  else OpenSSL::Digest::SHA256.new
-              end
-              
-              key = rsa_key_from_xml(public_key_xml)
-              key.public_key.verify(digest, signature, payload)
+                          
+            digest = case hashtype
+                when 'md2' then OpenSSL::Digest::MD2.new
+                when 'md5' then OpenSSL::Digest::MD5.new
+                when 'sha1' then OpenSSL::Digest::SHA1.new
+                when 'sha256' then OpenSSL::Digest::SHA256.new
+                when 'sha384' then OpenSSL::Digest::SHA384.new
+                when 'sha512' then OpenSSL::Digest::SHA512.new
+                else OpenSSL::Digest::SHA256.new
+            end
+            
+            key = get_rsa_key(url_safe_base64(key["n"]), url_safe_base64(key["e"]))
+            key.public_key.verify(digest, signature, payload)
           end
           
           #
@@ -149,7 +144,11 @@ module OpenIDConnectClient
           # @return bool
           #
           def verify_JWT_claims(claims)
-              (claims["iss"] == @provider_url and ((claims["aud"] == @client_id) or (claims["aud"].include? @client_id)) and (claims["nonce"] == @state[:openid_connect_nonce]))
+              if claims["nonce"]
+                  return (claims["iss"] == @provider_url and ((claims["aud"] == @client_id) or (claims["aud"].include? @client_id)) and (claims["nonce"] == @state["openid_connect_nonce"]))
+              else
+                  return (claims["iss"] == @provider_url and ((claims["aud"] == @client_id) or (claims["aud"].include? @client_id)))
+              end
           end
           
           #
@@ -291,21 +290,21 @@ module OpenIDConnectClient
           # @param string xml_string
           # @return object
           #
-          def rsa_key_from_xml(xml_string)
-              d = XML::Parser.string(xml_string).parse
-              m = Base64.decode64(d.find_first('Modulus').content).unpack('H*')
-              e = Base64.decode64(d.find_first('Exponent').content).unpack('H*')
+          def get_rsa_key(modulus, exponent)
+            #d = XML::Parser.string(xml_string).parse
+            m = Base64.decode64(modulus).unpack('H*')
+            e = Base64.decode64(exponent).unpack('H*')
 
-              pub_key = OpenSSL::PKey::RSA.new
-              
-              #modules
-              pub_key.n = OpenSSL::BN.new(m[0].hex.to_s)
-              
-              #exponent
-              pub_key.e = OpenSSL::BN.new(e[0].hex.to_s)
-              
-              #return Public Key
-              pub_key
+            pub_key = OpenSSL::PKey::RSA.new
+            
+            #modules
+            pub_key.n = OpenSSL::BN.new(m[0].hex.to_s)
+            
+            #exponent
+            pub_key.e = OpenSSL::BN.new(e[0].hex.to_s)
+            
+            #return Public Key
+            pub_key
           end 
 
           #
@@ -413,11 +412,11 @@ module OpenIDConnectClient
               # Generate and store a nonce in the session
               # The nonce is an arbitrary value
               nonce = random_string()
-              @state[:openid_connect_nonce] = nonce
+              @state["openid_connect_nonce"] = nonce
               
               # State essentially acts as a session key for OIDC
               state = random_string()
-              @state[:openid_connect_state] = state
+              @state["openid_connect_state"] = state
               
               @auth_params = @auth_params.merge({
                   response_type: response_type,
@@ -454,7 +453,7 @@ module OpenIDConnectClient
                   token_endpoint = get_provider_config_value(:token_endpoint)
                   grant_type = "authorization_code"
                   
-                  token_params = {
+                  tokemoduluss = {
                       grant_type: grant_type,
                       code: code,
                       redirect_uri: @redirect_url,
@@ -463,9 +462,9 @@ module OpenIDConnectClient
                   }
                   
                   # Convert token params to string format
-                  token_params = http_build_query(token_params)
+                  tokemoduluss = http_build_query(tokemoduluss)
                   
-                  token_data = fetch_url(token_endpoint, token_params).body_str
+                  token_data = fetch_url(token_endpoint, tokemoduluss).body_str
                   
                   unless token_data
                       raise OpenIDConnectClientException, "Unable to get token data from the provider."
@@ -479,7 +478,7 @@ module OpenIDConnectClient
                   end
                   
                   # Do an OpenID Connect session check
-                  unless @params[:state] == @state[:openid_connect_state]
+                  unless @params["state"] == @state["openid_connect_state"]
                       raise OpenIDConnectClientException, "Unable to determine state."
                   end
               
@@ -570,7 +569,7 @@ module OpenIDConnectClient
           # @return void
           # @throws OpenIDConnectClientException
           #
-          def register
+          def register()
               registration_endpoint = get_provider_config_value(:registration_endpoint)
               
               send_object = {
@@ -590,7 +589,7 @@ module OpenIDConnectClient
               if json_response[:client_id]
                   @client_secret = json_response[:client_id]
               else
-                  raise OpenIDConnectClientException, "Error registering: Please contact the OpenID Connect provider and obtain a Client ID and Secret directly from them"
+                  raise OpenIDConnectClientException, "Error registering: Please contact the OpenID Connect provider and obtain a Client ID and Secret directly from them."
               end
           end
           
